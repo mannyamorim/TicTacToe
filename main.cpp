@@ -30,6 +30,13 @@ SOFTWARE.
 #include "fmt/format.h"
 #include "fmt/color.h"
 
+//If compiling on Windows, include windows library for color support
+#ifdef _WIN32
+    #include <windows.h>
+    #undef min
+    #undef max
+#endif // _WIN32
+
 enum Piece {
     X,
     O,
@@ -45,15 +52,38 @@ enum WinState {
 
 Piece board[9] = { Empty };
 
+#ifdef _WIN32
+    HANDLE hConsole;
+    CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
+
+    inline void printX() {
+        SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
+        fmt::print("X");
+        SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes);
+    }
+    inline void printO() {
+        SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+        fmt::print("O");
+        SetConsoleTextAttribute(hConsole, screenBufferInfo.wAttributes);
+    }
+#else
+    inline void printX() {
+        fmt::print(fg(fmt::color::red), "X");
+    }
+    inline void printO() {
+        fmt::print(fg(fmt::color::blue), "O");
+    }
+#endif // _WIN32
+
 void printBoardState() {
     for (int x = 0; x < 3; x++) {
         for (int y = 0; y < 3; y++) {
             switch (board[(x * 3) + y]) {
                 case X:
-                    fmt::print(fg(fmt::color::red), "X");
+                    printX();
                     break;
                 case O:
-                    fmt::print(fg(fmt::color::blue), "O");
+                    printO();
                     break;
                 case Empty:
                     fmt::print("*");
@@ -173,6 +203,18 @@ int getComputerMove() {
 }
 
 int main() {
+#ifdef _WIN32
+    hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hConsole == NULL) {
+        fmt::print("Error getting console handle\n");
+        return 1;
+    }
+    if (!GetConsoleScreenBufferInfo(hConsole, &screenBufferInfo)) {
+        fmt::print("Error getting console screen buffer info\n");
+        return 1;
+    }
+#endif // _WIN32
+
     while (1) {
         resetGame();
         printBoardState();
